@@ -23,7 +23,7 @@ uv.StackedBarGraph.prototype = uv.util.inherits(uv.Graph);
 
 uv.StackedBarGraph.prototype.setDefaults = function () {
   var self = this;
-  self.graphdef.stepup = true;
+  self.graphdef.stepup = 'stepup';
   return this;
 };
 
@@ -46,12 +46,17 @@ uv.StackedBarGraph.prototype.drawHorizontalBars = function (idx, csum, tsum) {
     .style('stroke', 'none')
     .style('fill', color)
     .transition()
-      .duration(uv.config.effects.duration)
-      .delay(idx * uv.config.effects.duration)
+      .duration(self.config.effects.duration)
+      .delay(idx * self.config.effects.duration)
       .attr('width', function (d,i) { return axes.hor.scale(csum[i]) - axes.hor.scale(csum[i]-d.value); })
       .each("end", function (d,i){
         d3.select(this).on('mouseover', uv.effects.bar.mouseover(self, idx, self.config.effects.textcolor));
         d3.select(this).on('mouseout', uv.effects.bar.mouseout(self, idx, self.config.effects.textcolor));
+        if(typeof self.config.graph.clickCallback === "function") {
+          d3.select(this).on('click', function(_d){
+              self.config.graph.clickCallback.apply(null, [_d]);
+          });
+        }
       });
 
 
@@ -65,10 +70,12 @@ uv.StackedBarGraph.prototype.drawHorizontalBars = function (idx, csum, tsum) {
     .style('font-family', config.bar.fontfamily)
     .style('font-size', config.bar.fontsize)
     .style('font-weight', config.bar.fontweight)
+    .style('opacity', 0)
     .text(function(d) { return ( axes.hor.scale(d.value) > 15 ) ? uv.util.getLabelValue(self, d) : null; })
     .transition()
-      .duration(uv.config.effects.duration)
-      .delay(idx * uv.config.effects.duration)
+      .duration(self.config.effects.duration)
+      .delay(idx * self.config.effects.duration)
+      .style('opacity', 1)
       .attr('x', function (d, i) { tsum[i] += d.value; return axes.hor.scale(tsum[i]) - 5; });
 
   bars.append('svg:title')
@@ -95,12 +102,17 @@ uv.StackedBarGraph.prototype.drawVerticalBars = function (idx, csum, tsum) {
     .style('stroke', 'none')
     .style('fill', color)
     .transition()
-      .duration(uv.config.effects.duration)
-      .delay(idx * uv.config.effects.duration)
+      .duration(self.config.effects.duration)
+      .delay(idx * self.config.effects.duration)
       .attr('height', function (d,i) { return -(axes.ver.scale(-csum[i]) - axes.ver.scale(-csum[i]-d.value)); })
       .each("end", function (d,i){
         d3.select(this).on('mouseover', uv.effects.bar.mouseover(self, idx, self.config.effects.textcolor));
         d3.select(this).on('mouseout', uv.effects.bar.mouseout(self, idx, self.config.effects.textcolor));
+        if(typeof self.config.graph.clickCallback === "function") {
+          d3.select(this).on('click', function(_d){
+            self.config.graph.clickCallback.apply(null, [_d]);
+          });
+        }
       });
 
 
@@ -114,10 +126,12 @@ uv.StackedBarGraph.prototype.drawVerticalBars = function (idx, csum, tsum) {
     .style('font-family', config.bar.fontfamily)
     .style('font-size', config.bar.fontsize)
     .style('font-weight', config.bar.fontweight)
+    .style('opacity', 0)
     .text(function(d) { return ( height - axes.ver.scale(d.value) > 15) ? uv.util.getLabelValue(self, d) : null; })
     .transition()
-      .duration(uv.config.effects.duration)
-      .delay(idx * uv.config.effects.duration)
+      .duration(self.config.effects.duration)
+      .delay(idx * self.config.effects.duration)
+      .style('opacity', 1)
       .attr('y', function (d, i) { tsum[i] += d.value; return -(2*height - axes.ver.scale(tsum[i])) + 5; });
 
   bars.append('svg:title')

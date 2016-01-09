@@ -1,10 +1,4 @@
 /**
-* uv is the local namespace within the anonymous function, which holds everything else related to the library
-* @type {Object}
-*/
-var uv = {};
-
-/**
 * uv.Graph is an abstract class of sorts which serves as the base for all other graphs. Instances of it wouldnt be anything except bare bones needed to create a chart.
 * id          - unique id corresponding to the graph, created using current timestamp {#TODO: needs improved logic}
 * graphdef    - definition of the graph, containing data on which the visualization is built
@@ -30,8 +24,9 @@ uv.Graph = function (graphdef, config) {
   self.bg = null;
   self.effects = {};
   self.axes = {
-    hor : { group: null, scale : null, func: null, axis : null, line : null, label : null },
-    ver : { group: null, scale : null, func: null, axis : null, line : null, label : null }
+    hor: { group: null, scale : null, func: null, axis : null, line : null, label : null },
+    ver: { group: null, scale : null, func: null, axis : null, line : null, label : null },
+    meta: { min: null, max: null }
   };
 
   self.labels = null;
@@ -52,7 +47,8 @@ uv.Graph = function (graphdef, config) {
 */
 uv.Graph.prototype.init = function () {
   var self = this;
-  self.max(self.graphdef.stepup)
+  self.max()
+    .min()
     .position(self.config.meta.position || 'body')
     .setDimensions()
     .setFrame()
@@ -137,15 +133,24 @@ uv.Graph.prototype.setFrame = function () {
   if (!self.frame) {
     self.frame = d3.select(self.position() || 'body').append('div')
       .classed(uv.constants.classes.chartdiv, true)
-      .style('display','inline-block').append('svg');
+      .style('display','inline-block')
+      .style('width', '100%')
+      .style('height', '100%')
+      .append('svg');
   }
 
   self.frame.attr('id', uv.constants.classes.uv + '-' + self.id)
-    .classed(uv.constants.classes.frame, true)
-    .attr('width', '100%')
-    .attr('height', '100%')
-    .attr('preserveAspectRatio', self.config.graph.align + ' ' + self.config.graph.meetOrSlice)
-    .attr('viewBox', '0 0 ' + (self.width() + self.left() + self.right()) + ' ' + (self.height() + self.top() + self.bottom()));
+    .classed(uv.constants.classes.frame, true);
+
+  if (self.config.graph.responsive === true) {
+    self.frame.attr('width', '100%')
+      .attr('height', '100%')
+      .attr('preserveAspectRatio', self.config.graph.align + ' ' + self.config.graph.meetOrSlice)
+      .attr('viewBox', '0 0 ' + (self.width() + self.left() + self.right()) + ' ' + (self.height() + self.top() + self.bottom()));
+  } else {
+    self.frame.attr('width', self.width() + self.left() + self.right())
+      .attr('height', self.height() + self.top() + self.bottom());
+  }
 
   self.frame.append('rect').classed(uv.constants.classes.framebg, true)
     .attr('width', self.width() + self.left() + self.right())
@@ -265,7 +270,7 @@ uv.Graph.prototype.setHorizontalAxis = function () {
 
   if (self.config.graph.orientation === 'Horizontal') {
     self.axes.hor.scale  = d3.scale[self.config.scale.type]()
-                .domain([self.config.scale.type === 'log' ? 1: 0, self.max()])
+                .domain([self.config.scale.type === 'log' ? 1: self.min(), self.max()])
                 .range([0, self.width()]);
 
     if (self.axes.hor.scale.nice) {
@@ -292,12 +297,11 @@ uv.Graph.prototype.setHorizontalAxis = function () {
                 .tickPadding(self.config.axis.padding)
                 .orient('bottom');
 
-    if(!self.config.axis.showtext) {
+    if(!self.config.axis.showtext || !self.config.axis.showhortext) {
       self.axes.hor.func.tickSize(0);
     }
   }
-
-  if(!self.config.axis.showtext) {
+  if(!self.config.axis.showtext || !self.config.axis.showhortext) {
       self.axes.hor.func.tickFormat(function (d) { return ''; });
   }
 
@@ -318,7 +322,7 @@ uv.Graph.prototype.setVerticalAxis = function () {
 
   if (self.config.graph.orientation === 'Vertical') {
     self.axes.ver.scale  = d3.scale[self.config.scale.type]()
-                .domain([self.max(), self.config.scale.type === 'log' ? 1 : 0])
+                .domain([self.max(), self.config.scale.type === 'log' ? 1 : self.min()])
                 .range([0, self.height()]);
 
     if (self.axes.ver.scale.nice) {
@@ -346,11 +350,11 @@ uv.Graph.prototype.setVerticalAxis = function () {
                 .tickPadding(self.config.axis.padding)
                 .orient('left');
 
-    if(!self.config.axis.showtext){
+    if(!self.config.axis.showtext || !self.config.axis.showvertext){
       self.axes.ver.func.tickSize(0);
     }
   }
-  if(!self.config.axis.showtext) {
+  if(!self.config.axis.showtext || !self.config.axis.showvertext) {
     self.axes.ver.func.tickFormat(function (d) { return ''; });
   }
 
@@ -390,8 +394,8 @@ uv.Graph.prototype.drawHorizontalAxis = function () {
 
   self.axes.hor.line = self.panel.append('line')
                 .classed(uv.constants.classes.horaxis, true)
-                .attr('y1', self.height())
-                .attr('y2', self.height())
+                .attr('y1', self.config.graph.orientation === 'Horizontal' ? self.height() : self.axes.ver.scale(0))
+                .attr('y2', self.config.graph.orientation === 'Horizontal' ? self.height() : self.axes.ver.scale(0))
                 .attr('x1', '0')
                 .attr('x2', self.width())
                 .style('stroke', self.config.axis.strokecolor);
@@ -441,6 +445,8 @@ uv.Graph.prototype.drawVerticalAxis = function () {
 
   self.axes.ver.line = self.panel.append('line')
                 .classed(uv.constants.classes.veraxis, true)
+                .attr('x1', self.config.graph.orientation === 'Horizontal'? self.axes.hor.scale(0): 0)
+                .attr('x2', self.config.graph.orientation === 'Horizontal'? self.axes.hor.scale(0): 0)
                 .attr('y1', 0)
                 .attr('y2', self.height())
                 .style('stroke', self.config.axis.strokecolor);
@@ -533,6 +539,9 @@ uv.Graph.prototype.setLegend = function () {
         .attr('dx', self.config.legend.textmargin)
         .attr('dy', '.71em')
         .attr('text-anchor', 'start')
+        .style('stroke', self.config.legend.color)
+        .style('fill', self.config.legend.color)
+        .style('stroke-width', self.config.legend.strokewidth)
         .style('font-family', self.config.legend.fontfamily)
         .style('font-size', self.config.legend.fontsize)
         .style('font-weight', self.config.legend.fontweight);
@@ -706,23 +715,23 @@ uv.Graph.prototype.isDownloadable = function (isDownload) {
   return this.config.meta.isDownload;
 };
 
-uv.Graph.prototype.max = function (stepup) {
-  if (stepup === true) {
-    this.config.graph.max = uv.util.getStepMaxValue(this.graphdef);
-    return this;
-  } else if (stepup === false) {
-    this.config.graph.max = uv.util.getMaxValue(this.graphdef);
-    return this;
-  } else if (stepup === 'percent') {
-    this.config.graph.max = 100;
-    return this;
-  }  else if (stepup === 'waterfall') {
-    this.config.graph.max = uv.util.getWaterfallMaxValue(this.graphdef);
-    return this;
+uv.Graph.prototype.max = function () {
+  if (this.axes.meta.max !== null) {
+    return this.axes.meta.max;
   }
 
-  return this.config.graph.max;
-};
+  this.axes.meta.max = uv.util.getMax(this.graphdef, this.graphdef.stepup);
+  return this;
+}
+
+uv.Graph.prototype.min = function () {
+  if (this.axes.meta.min !== null) {
+    return this.axes.meta.min;
+  }
+
+  this.axes.meta.min = uv.util.getMin(this.graphdef, this.graphdef.stepup);
+  return this;
+}
 
 /* Additional Graph functions*/
 uv.Graph.prototype.toggleGraphGroup = function (i) {

@@ -45,13 +45,18 @@ uv.PieGraph = function (graphdef, config) {
   self.arcs.append('svg:title')
     .text(function (d, i) { return uv.util.getTooltipText(self, self.category, self.labels[i], d);});
 
+  if (typeof self.config.graph.clickCallback === "function") {
+    self.arcs.on('click', function (d) {
+      self.config.graph.clickCallback.apply(null, [d]);
+    });
+  }
 };
 
 uv.PieGraph.prototype = uv.util.inherits(uv.Graph);
 
 uv.PieGraph.prototype.setDefaults = function () {
   var self = this;
-  self.graphdef.stepup = false;
+  self.graphdef.stepup = 'normal';
   self.config.legend.legendtype = 'labels';
   return this;
 };

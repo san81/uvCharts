@@ -29,7 +29,7 @@ uv.LineGraph.prototype = uv.util.inherits(uv.Graph);
 
 uv.LineGraph.prototype.setDefaults = function () {
   var self = this;
-  self.graphdef.stepup = false;
+  self.graphdef.stepup = 'normal';
   self.config.scale.ordinality = 0;
   return this;
 };
@@ -52,8 +52,8 @@ uv.LineGraph.prototype.drawHorizontalLines = function (linegroup, idx) {
         .attr('d', linegroup.func)
         .style('fill', 'none')
         .style('stroke', color)
-        .style('stroke-width', 1.5)
-        .style('stroke-opacity', 0.01)
+        .style('stroke-width', self.config.line.strokewidth)
+        .style('stroke-opacity', self.config.line.strokeopacity)
         .transition()
           .duration(3 * self.config.effects.duration)
           .delay(2 * idx * self.config.effects.duration)
@@ -65,19 +65,20 @@ uv.LineGraph.prototype.drawHorizontalLines = function (linegroup, idx) {
             d3.select(this.parentNode.parentNode).selectAll('circle').on('mouseout', uv.effects.line.mouseout(self, idx));
           });
 
-  linegroup.path.selectAll('circle')
-        .data(self.dataset[idx])
-        .enter().append('circle')
-        .classed('cr-' + uv.util.formatClassName(self.categories[idx]), true)
-        .attr('cx', linegroup.func.x())
-        .attr('cy', linegroup.func.y())
-        .attr('r', 3.5)
-        .style('fill', color)
-        .style('fill-opacity', 0.6)
-        .style('stroke', '#fff')
-          .append('svg:title')
-          .text( function (d, i) { return uv.util.getTooltipText(self, self.categories[idx], self.labels[i], d);});
-
+  if (self.config.line.showcircles) {
+    linegroup.path.selectAll('circle')
+          .data(self.dataset[idx])
+          .enter().append('circle')
+          .classed('cr-' + uv.util.formatClassName(self.categories[idx]), true)
+          .attr('cx', linegroup.func.x())
+          .attr('cy', linegroup.func.y())
+          .attr('r', self.config.line.circleradius)
+          .style('fill', color)
+          .style('fill-opacity', self.config.line.circleopacity)
+          .style('stroke', '#fff')
+            .append('svg:title')
+            .text( function (d, i) { return uv.util.getTooltipText(self, self.categories[idx], self.labels[i], d);});
+  }
 
   linegroup.path.selectAll('text')
         .data(self.dataset[idx])
@@ -87,12 +88,17 @@ uv.LineGraph.prototype.drawHorizontalLines = function (linegroup, idx) {
         .attr('dx', 10)
         .attr('dy', '.35em')
         .attr('text-anchor', 'start')
+        .style('opacity', 0)
         .classed('cr-' + uv.util.formatClassName(self.categories[idx]), true)
         .style('fill', self.config.label.showlabel ? uv.util.getColorBand(self.config, idx) : 'none')
-        .style('font-family', self.config.bar.fontfamily)
-        .style('font-size', self.config.bar.fontsize)
-        .style('font-weight', self.config.bar.fontweight)
-        .text(function(d) { return uv.util.getLabelValue(self, d); });
+        .style('font-family', self.config.line.fontfamily)
+        .style('font-size', self.config.line.fontsize)
+        .style('font-weight', self.config.line.fontweight)
+        .text(function(d) { return uv.util.getLabelValue(self, d); })
+        .transition()
+          .duration(3 * self.config.effects.duration)
+          .delay(2 * idx * self.config.effects.duration)
+          .style('opacity', 1);
 
   return this;
 };
@@ -115,8 +121,8 @@ uv.LineGraph.prototype.drawVerticalLines = function (linegroup, idx) {
         .classed('cr-' + uv.util.formatClassName(self.categories[idx]), true)
         .style('fill', 'none')
         .style('stroke', color)
-        .style('stroke-width', 1.5)
-        .style('stroke-opacity', 0.01)
+        .style('stroke-width', self.config.line.strokewidth)
+        .style('stroke-opacity', self.config.line.strokeopacity)
         .transition()
           .duration(self.config.effects.duration)
           .delay(2 * idx * self.config.effects.duration)
@@ -128,18 +134,20 @@ uv.LineGraph.prototype.drawVerticalLines = function (linegroup, idx) {
             d3.select(this.parentNode.parentNode).selectAll('circle').on('mouseout', uv.effects.line.mouseout(self, idx));
           });
 
-  linegroup.path.selectAll('circle')
-        .data(self.dataset[idx])
-        .enter().append('circle')
-        .attr('cx', linegroup.func.x())
-        .attr('cy', linegroup.func.y())
-        .attr('r', 3.5)
-        .classed('cr-' + uv.util.formatClassName(self.categories[idx]), true)
-        .style('fill', color)
-        .style('fill-opacity', 0.2)
-        .style('stroke', '#fff')
-          .append('svg:title')
-          .text( function (d, i) { return uv.util.getTooltipText(self, self.categories[idx], self.labels[i], d);});
+  if (self.config.line.showcircles) {
+    linegroup.path.selectAll('circle')
+          .data(self.dataset[idx])
+          .enter().append('circle')
+          .attr('cx', linegroup.func.x())
+          .attr('cy', linegroup.func.y())
+          .attr('r', self.config.line.circleradius)
+          .classed('cr-' + uv.util.formatClassName(self.categories[idx]), true)
+          .style('fill', color)
+          .style('fill-opacity', self.config.line.circleopacity)
+          .style('stroke', '#fff')
+            .append('svg:title')
+            .text( function (d, i) { return uv.util.getTooltipText(self, self.categories[idx], self.labels[i], d);});
+  }
 
   linegroup.path.selectAll('text')
         .data(self.dataset[idx])
@@ -151,10 +159,15 @@ uv.LineGraph.prototype.drawVerticalLines = function (linegroup, idx) {
         .attr('text-anchor', 'middle')
         .classed('cr-' + uv.util.formatClassName(self.categories[idx]), true)
         .style('fill', self.config.label.showlabel ? uv.util.getColorBand(self.config, idx) : 'none')
-        .style('font-family', self.config.bar.fontfamily)
-        .style('font-size', self.config.bar.fontsize)
-        .style('font-weight', self.config.bar.fontweight)
-        .text(function(d) { return uv.util.getLabelValue(self, d); });
+        .style('font-family', self.config.line.fontfamily)
+        .style('font-size', self.config.line.fontsize)
+        .style('font-weight', self.config.line.fontweight)
+        .style('opacity', 0)
+        .text(function(d) { return uv.util.getLabelValue(self, d); })
+        .transition()
+          .duration(3 * self.config.effects.duration)
+          .delay(2 * idx * self.config.effects.duration)
+          .style('opacity', 1);
 
   return this;
 };

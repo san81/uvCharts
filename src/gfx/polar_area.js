@@ -58,12 +58,17 @@ uv.PolarAreaGraph = function (graphdef, config) {
     .style("fill", "none")
     .attr('transform', 'translate(' + self.center.x + ',' + self.center.y + ')');
 
+  if (typeof self.config.graph.clickCallback === "function") {
+    self.arcs.on('click', function (d) {
+      self.config.graph.clickCallback.apply(null, [d]);
+    });
+  }
 };
 
 uv.PolarAreaGraph.prototype = uv.util.inherits(uv.Graph);
 
 uv.PolarAreaGraph.prototype.setDefaults = function () {
   var self = this;
-  self.graphdef.stepup = false;
+  self.graphdef.stepup = 'normal';
   return this;
 };

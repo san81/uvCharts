@@ -19,6 +19,21 @@ uv.util.getUniqueId = function () {
   return new Date().getTime();
 };
 
+uv.util.getMax = function (graphdef, classification) {
+  switch (classification) {
+    case 'stepup':
+      return this.getStepMaxValue(graphdef);
+    case 'normal':
+      return this.getMaxValue(graphdef);
+    case 'percent':
+      return 100;
+    case 'waterfall':
+      return this.getWaterfallMaxValue(graphdef);
+    default:
+      console.error("Unknown classification for chart", classification);
+  }
+}
+
 /**
 *
 */
@@ -31,14 +46,20 @@ uv.util.getMaxValue = function (graphdef) {
 };
 
 uv.util.getStepMaxValue = function (graphdef) {
-  var sumMap = graphdef.dataset[graphdef.categories[0]].map(function () {return 0; });
+  var sumMap = graphdef.dataset[graphdef.categories[0]].map(function () {return 0; }),
+    maxMap = sumMap.map(function () { return 0; });
+
   graphdef.categories.map(function (d) {
     graphdef.dataset[d].map(function (d, i) {
+      if (d.resetSum === true) {
+        sumMap[i] = 0;
+      }
       sumMap[i] += d.value;
+      maxMap[i] = d3.max([sumMap[i], maxMap[i]]);
     });
   });
 
-  return d3.max(sumMap);
+  return d3.max(maxMap);
 };
 
 uv.util.getWaterfallMaxValue = function(graphdef) {
@@ -55,6 +76,43 @@ uv.util.getWaterfallMaxValue = function(graphdef) {
 
   return d3.max(sumMap);
 };
+
+uv.util.getMin = function (graphdef, classification) {
+  switch (classification) {
+    case 'normal':
+      return this.getMinValue(graphdef);
+    case 'stepup':
+      return this.getStepMinValue(graphdef);
+    default:
+      return 0;
+  }
+}
+
+/**
+*
+*/
+uv.util.getMinValue = function (graphdef) {
+  return d3.min([0, d3.min(graphdef.categories.map(function (d) {
+      return d3.min(graphdef.dataset[d].map(function (d) {
+        return d.value;
+      }));
+    }))
+  ]);
+};
+
+uv.util.getStepMinValue = function (graphdef) {
+  var sumMap = graphdef.dataset[graphdef.categories[0]].map(function () {return 0; }),
+    minMap = sumMap.map(function () { return 0; });
+
+  graphdef.categories.map(function (d) {
+    graphdef.dataset[d].map(function (d, i) {
+      sumMap[i] += d.value;
+      minMap[i] = d3.min([sumMap[i], minMap[i]]);
+    });
+  });
+
+  return d3.min(minMap);
+}
 
 uv.util.getSumUpArray = function (graphdef) {
   var sumMap = graphdef.dataset[graphdef.categories[0]].map(function () {return 0; });
@@ -105,17 +163,20 @@ uv.util.getCategoryData = function (graphdef, categories) {
 };
 
 uv.util.transposeData = function (graphdef) {
-  var dataset = {}, i, j, length, jlength,
+  var dataset = {}, i, j, length, jlength, resetSum,
     name, label, value, categories = graphdef.dataset[graphdef.categories[0]].map(function (d) { return d.name; });
 
-  for (i = 0, length = categories.length; i < length; i = i + 1) { dataset[categories[i]] = []; }
+  for (i = 0, length = categories.length; i < length; i = i + 1) {
+    dataset[categories[i]] = [];
+  }
 
   for (i = 0, length = graphdef.categories.length; i < length; i = i + 1) {
     name = graphdef.categories[i];
     for (j = 0, jlength = graphdef.dataset[name].length; j < jlength; j = j + 1) {
       label = graphdef.dataset[name][j].name;
       value = graphdef.dataset[name][j].value;
-      dataset[label].push({ 'name' : name, 'value' : value });
+      resetSum = graphdef.dataset[name][j].resetSum;
+      dataset[label].push({ 'name' : name, 'value' : value, 'resetSum': resetSum });
     }
   }
 
@@ -128,7 +189,9 @@ uv.util.getPascalCasedName = function (name) {
 };
 
 uv.util.getColorBand = function (config, index) {
-  var len = 0;
+  var len = 0,
+    palette = config.graph.palette || 'Default';
+
   if (config.graph.custompalette && config.graph.custompalette.length !== 0) {
     len = config.graph.custompalette.length;
     return config.graph.custompalette[index % len];
@@ -219,7 +282,11 @@ uv.util.getClassName = function(self, name) {
 */
 uv.util.getLabelValue = function(self, d) {
   // if(typeof d.value !== 'number') return null;
-  var val = (d.value%1 === 0) ? d.value : d.value.toFixed(self.config.label.precision);
+  if (self.config.label.formatter !== undefined) {
+    return self.config.label.formatter(d.value);
+  }
+
+  var val = (d.value % 1 === 0) ? d.value : d.value.toFixed(self.config.label.precision);
   return self.config.label.prefix + String(val) + self.config.label.suffix;
 };
 
